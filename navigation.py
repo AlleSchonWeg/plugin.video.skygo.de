@@ -31,6 +31,7 @@ extMediaInfos = addon.getSetting('enable_extended_mediainfos')
 icon_file = xbmc.translatePath(addon.getAddonInfo('path') + '/icon.png').decode('utf-8')
 skygo = None
 htmlparser = HTMLParser()
+requests_headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36'}
 
 # Blacklist: diese nav_ids nicht anzeigen
 # 15 = Snap
@@ -45,7 +46,9 @@ js_showall = addon.getSetting('js_showall')
 
 
 def getNav():
-    feed = urllib2.urlopen('https://www.skygo.sky.de/sg/multiplatform/ipad/json/navigation.xml')
+    opener = urllib2.build_opener()
+    opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36')]
+    feed = opener.open('https://www.skygo.sky.de/sg/multiplatform/ipad/json/navigation.xml')
     nav = ET.parse(feed)
     return nav.getroot()
 
@@ -219,7 +222,7 @@ def getlistLiveChannelData(channel=None):
     data = {}
     url = 'https://www.skygo.sky.de/epgd/sg/ipad/excerpt/'
     while attempt < 3 and len(data) == 0:
-        res = requests.get(url)
+        res = requests.get(url, headers=requests_headers)
         data = res.json() if res.headers['content-type'].find('application/json') >= 0 else {}
         attempt += 1
 
@@ -241,7 +244,7 @@ def getlistLiveChannelData(channel=None):
         data_web = {}
         url = 'https://www.skygo.sky.de/epgd/sg/web/excerpt/'
         while attempt < 3 and len(data) == 0:
-            res = requests.get(url)
+            res = requests.get(url, headers=requests_headers)
             data_web = res.json() if res.headers['content-type'].find('application/json') >= 0 else {}
             attempt += 1
 
@@ -348,7 +351,7 @@ def getLiveChannelDetails(eventlist, s_manifest_url=None):
 
 def listEpisodesFromSeason(series_id, season_id):
     url = skygo.baseUrl + '/sg/multiplatform/web/json/details/series/' + str(series_id) + '_global.json'
-    r = requests.get(url)
+    r = requests.get(url, headers=requests_headers)
     data = r.json()['serieRecap']['serie']
     xbmcplugin.setContent(skygo.addon_handle, 'episodes')
     for season in data['seasons']['season']:
@@ -385,7 +388,7 @@ def listEpisodesFromSeason(series_id, season_id):
 
 def listSeasonsFromSeries(series_id):
     url = skygo.baseUrl + '/sg/multiplatform/web/json/details/series/' + str(series_id) + '_global.json'
-    r = requests.get(url)
+    r = requests.get(url, headers=requests_headers)
     data = r.json()['serieRecap']['serie']
     xbmcplugin.setContent(skygo.addon_handle, 'tvshows')
     for season in data['seasons']['season']:
@@ -422,7 +425,7 @@ def getAssets(data, key='asset_type'):
             asset_list.append({'type': asset[key], 'label': asset['title'], 'url': url, 'data': asset})
         elif asset[key].lower() == 'season':
             url = skygo.baseUrl + '/sg/multiplatform/web/json/details/series/' + str(asset['serie_id']) + '_global.json'
-            r = requests.get(url)
+            r = requests.get(url, headers=requests_headers)
             serie = r.json()['serieRecap']['serie']
             asset['synopsis'] = serie['synopsis']
             for season in serie['seasons']['season']:
@@ -720,7 +723,7 @@ def listAssets(asset_list, isWatchlist=False):
 def listPath(path):
     page = {}
     path = path.replace('ipad', 'web')
-    r = requests.get(skygo.baseUrl + path)
+    r = requests.get(skygo.baseUrl + path, headers=requests_headers)
     if r.status_code != 404:
         page = r.json()
     else:
